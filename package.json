@@ -14,7 +14,7 @@
     "cors": "^2.8.5",
     "execa": "^9.6.0",
     "express": "^5.1.0",
-    "puppeteer": "^24.15.0",
+    "puppeteer-core": "^20.9.0",
     "uuid": "^11.1.0"
   },
   "repository": {
