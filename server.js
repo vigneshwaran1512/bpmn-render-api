@@ -1,21 +1,36 @@
+// server.js
 const express = require("express");
 const bodyParser = require("body-parser");
 const fs = require("fs");
-const { render } = require("bpmn-to-image");
+const path = require("path");
 
 const app = express();
-app.use(bodyParser.text({ type: "application/xml" }));
+app.use(bodyParser.text({ type: "*/*" }));
 
-app.post("/render-bpmn", async (req, res) => {
-  const bpmnXml = req.body;
-  try {
-    const result = await render(bpmnXml); // returns SVG buffer
-    res.setHeader("Content-Type", "image/svg+xml");
-    res.send(result);
-  } catch (err) {
-    console.error("Rendering failed:", err);
-    res.status(500).send("BPMN rendering failed");
+// Static file serving for the viewer
+app.use("/static", express.static(path.join(__dirname, "static")));
+
+app.post("/render", async (req, res) => {
+  const xml = req.body;
+
+  if (!xml || xml.trim() === "") {
+    return res.status(400).send("No BPMN XML provided.");
   }
+
+  const viewerPath = path.join(__dirname, "static", "viewer.html");
+
+  if (!fs.existsSync(viewerPath)) {
+    return res.status(500).send("viewer.html not found.");
+  }
+
+  const html = fs.readFileSync(viewerPath, "utf-8");
+  const renderedHtml = html.replace("<!--__BPMN_XML__-->", xml);
+
+  res.setHeader("Content-Type", "text/html");
+  res.send(renderedHtml);
 });
 
-app.listen(3000, () => console.log("BPMN render server running on port 3000"));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`✅ Server running at http://localhost:${PORT}`);
+});

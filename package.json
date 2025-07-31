@@ -11,9 +11,22 @@
   "license": "ISC",
   "dependencies": {
     "body-parser": "^2.2.0",
-    "bpmn-to-image": "^0.9.0",
-    "express": "^5.1.0"
+    "cors": "^2.8.5",
+    "execa": "^9.6.0",
+    "express": "^5.1.0",
+    "puppeteer": "^24.15.0",
+    "uuid": "^11.1.0"
   },
-  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vigneshwaran1512/bpmn-render-api.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vigneshwaran1512/bpmn-render-api/issues"
+  },
+  "homepage": "https://github.com/vigneshwaran1512/bpmn-render-api#readme",
+  "devDependencies": {
+    "bpmn-to-image": "^0.9.0"
+  },
   "description": ""
 }
