@@ -1,16 +1,17 @@
 const express = require('express');
-const cors = require('cors');
 const bodyParser = require('body-parser');
-const { convert } = require('bpmn-to-image');
+const cors = require('cors');
 const fs = require('fs');
-const { v4: uuidv4 } = require('uuid');
 const path = require('path');
+const { v4: uuidv4 } = require('uuid');
+const { convert } = require('bpmn-to-image');
+const chrome = require('chrome-aws-lambda');
 
 const app = express();
-const port = process.env.PORT || 4000;
+const PORT = process.env.PORT || 4000;
 
 app.use(cors());
-app.use(bodyParser.text({ type: 'application/xml' }));
+app.use(bodyParser.text({ type: '*/*' }));
 
 app.post('/render', async (req, res) => {
   try {
@@ -19,19 +20,26 @@ app.post('/render', async (req, res) => {
     const bpmnFilePath = path.join(__dirname, `${tempId}.bpmn`);
     const imageFilePath = path.join(__dirname, `${tempId}.svg`);
 
+    // Save incoming BPMN XML to file
     fs.writeFileSync(bpmnFilePath, bpmnXml, 'utf8');
 
+    // Convert to image
     await convert({
       source: bpmnFilePath,
       destination: imageFilePath,
-      format: 'svg' // or 'png'
+      format: 'svg',
+      executablePath: await chrome.executablePath,
+      args: chrome.args,
+      headless: chrome.headless,
+      defaultViewport: chrome.defaultViewport
     });
 
+    // Send the rendered SVG
     const imageBuffer = fs.readFileSync(imageFilePath);
     res.setHeader('Content-Type', 'image/svg+xml');
     res.send(imageBuffer);
 
-    // Clean up files
+    // Cleanup
     fs.unlinkSync(bpmnFilePath);
     fs.unlinkSync(imageFilePath);
   } catch (err) {
@@ -40,6 +48,6 @@ app.post('/render', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`✅ Server running on port ${port}`);
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
 });
