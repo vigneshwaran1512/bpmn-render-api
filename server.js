@@ -3,43 +3,35 @@ const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
-
-// 👇 Force puppeteer path
-process.env.PUPPETEER_EXECUTABLE_PATH = require('puppeteer').executablePath();
-
 const bpmnToImage = require('bpmn-to-image');
+const puppeteer = require('puppeteer');
+
+process.env.PUPPETEER_EXECUTABLE_PATH = puppeteer.executablePath();
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
-const PORT = process.env.PORT || 10000;
-
-app.post('/render', upload.single('file'), async (req, res) => {
+app.post('/render', upload.single('bpmn'), async (req, res) => {
   try {
-    const inputPath = req.file.path;
-    const outputDir = path.join(__dirname, 'output', uuidv4());
-
+    const id = uuidv4();
+    const outputDir = path.join(__dirname, 'output', id);
     fs.mkdirSync(outputDir, { recursive: true });
 
     await bpmnToImage.convert({
-      input: inputPath,
+      input: req.file.path,
       output: outputDir,
       format: 'png'
     });
 
-    const files = fs.readdirSync(outputDir);
-    const pngFile = files.find(file => file.endsWith('.png'));
-
-    if (!pngFile) throw new Error('PNG not generated');
-
-    const filePath = path.join(outputDir, pngFile);
-    res.sendFile(filePath);
-  } catch (error) {
-    console.error('❌ Error during render:', error);
-    res.status(500).send('Internal Server Error');
+    const outputFilePath = path.join(outputDir, 'diagram.png');
+    res.sendFile(outputFilePath);
+  } catch (err) {
+    console.error('❌ Error during render:', err);
+    res.status(500).send('Error rendering BPMN diagram.');
   }
 });
 
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
