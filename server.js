@@ -1,37 +1,58 @@
-const express = require('express');
-const multer = require('multer');
-const { v4: uuidv4 } = require('uuid');
-const fs = require('fs');
-const path = require('path');
-const bpmnToImage = require('bpmn-to-image');
-const puppeteer = require('puppeteer');
-
-process.env.PUPPETEER_EXECUTABLE_PATH = puppeteer.executablePath();
+const express = require("express");
+const bodyParser = require("body-parser");
+const puppeteer = require("puppeteer");
+const fs = require("fs");
+const path = require("path");
 
 const app = express();
-const upload = multer({ dest: 'uploads/' });
+const PORT = process.env.PORT || 3000;
 
-app.post('/render', upload.single('bpmn'), async (req, res) => {
+app.use(bodyParser.json({ limit: "10mb" }));
+
+app.post("/render", async (req, res) => {
+  const { bpmnXml } = req.body;
+
+  if (!bpmnXml) {
+    return res.status(400).send("Missing bpmnXml in request body");
+  }
+
   try {
-    const id = uuidv4();
-    const outputDir = path.join(__dirname, 'output', id);
-    fs.mkdirSync(outputDir, { recursive: true });
-
-    await bpmnToImage.convert({
-      input: req.file.path,
-      output: outputDir,
-      format: 'png'
+    const browser = await puppeteer.launch({
+      executablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
 
-    const outputFilePath = path.join(outputDir, 'diagram.png');
-    res.sendFile(outputFilePath);
+    const page = await browser.newPage();
+
+    // Serve the HTML page that renders BPMN
+    const html = fs.readFileSync(path.join(__dirname, "viewer.html"), "utf8");
+    await page.setContent(html);
+
+    // Set BPMN diagram XML
+    await page.evaluate((xml) => {
+      window.renderBPMN(xml);
+    }, bpmnXml);
+
+    // Wait for rendering
+    await page.waitForSelector("svg");
+
+    // Extract SVG
+    const svg = await page.$eval("svg", (el) => el.outerHTML);
+    await browser.close();
+
+    res.set("Content-Type", "image/svg+xml");
+    res.send(svg);
   } catch (err) {
-    console.error('❌ Error during render:', err);
-    res.status(500).send('Error rendering BPMN diagram.');
+    console.error("Error rendering BPMN:", err);
+    res.status(500).send("Rendering failed");
   }
 });
 
-const PORT = process.env.PORT || 3000;
+app.get("/", (req, res) => {
+  res.send("BPMN Render API is running.");
+});
+
 app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`Server listening on port ${PORT}`);
 });
